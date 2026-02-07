@@ -15,15 +15,21 @@ os.makedirs(CACHE_DIR, exist_ok=True)
 os.makedirs(TEMP_DIR, exist_ok=True)
 os.makedirs(CONVERT_DIR, exist_ok=True)
 
-try:
-    emotion_model = pipeline(
-        "audio-classification",
-        model="superb/wav2vec2-base-superb-er",
-        cache_dir=CACHE_DIR
-    )
-except Exception as e:
-    print(f"ERROR: Failed to load emotion model: {e}")
-    emotion_model = None
+emotion_model = None
+
+def get_emotion_model():
+    global emotion_model
+    if emotion_model is None:
+        try:
+            emotion_model = pipeline(
+                "audio-classification",
+                model="superb/wav2vec2-base-superb-er",
+                cache_dir=CACHE_DIR
+            )
+        except Exception as e:
+            print(f"ERROR: Failed to load emotion model: {e}")
+            raise RuntimeError(f"Model loading failed: {e}") from e
+    return emotion_model
 
 
 def cleanup_old_converted_files():
@@ -82,11 +88,8 @@ def split_audio(file_path, chunk_size=5):
 
 
 def detect_emotion(audio_file):
-    if not emotion_model:
-        raise RuntimeError("Emotion model not loaded")
-
-    result = emotion_model(audio_file)
-
+    model = get_emotion_model()
+    result = model(audio_file)
     return result[0]["label"]
 
 
