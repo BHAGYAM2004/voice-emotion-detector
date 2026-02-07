@@ -2,5 +2,7 @@ services:
   - type: web
     name: voice-emotion-detector
     env: python
-    buildCommand: apt-get update && apt-get install -y ffmpeg && pip install -r requirements.txt
+    apt:
+      - ffmpeg
+    buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:app
