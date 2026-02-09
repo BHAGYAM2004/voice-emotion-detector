@@ -1,0 +1,29 @@
+# Ignore local development files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual Environment
+venv/
+env/
+ENV/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Git
+.git/
+.gitignore
+
+# These will be created at runtime on Render
+hf_cache/
+temp_audio/
+converted_audio/
+uploads/
+static/chart.html

@@ -2,7 +2,20 @@ services:
   - type: web
     name: voice-emotion-detector
     env: python
+    plan: free
     apt:
       - ffmpeg
-    buildCommand: pip install -r requirements.txt
+    buildCommand: |
+      # Install CPU-only PyTorch for smaller deployment size
+      # Using patched versions to address security vulnerabilities
+      pip install torch==2.6.0 torchaudio==2.6.0 --index-url https://download.pytorch.org/whl/cpu
+      # Install remaining dependencies with security patches
+      pip install flask==3.0.0 gunicorn==22.0.0 transformers==4.48.0 librosa==0.10.1 soundfile==0.12.1 numpy==1.24.3 pandas==2.1.3 plotly==5.18.0 pydub==0.25.1
     startCommand: gunicorn app:app
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: TRANSFORMERS_CACHE
+        value: /opt/render/project/src/hf_cache
+      - key: HF_HOME
+        value: /opt/render/project/src/hf_cache
