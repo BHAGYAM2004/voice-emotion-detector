@@ -8,21 +8,31 @@ This voice emotion detector has been optimized to run on Render's free tier with
 ### 1. CPU-Only PyTorch
 - **Before**: Full PyTorch with CUDA support (~800MB-1GB)
 - **After**: CPU-only PyTorch wheels (~200-300MB)
+- **Version**: 2.6.0+ with security patches
 - **Impact**: 60-70% reduction in package size
 
-### 2. Custom Build Command
+### 2. Security Updates
+- **PyTorch**: Updated to 2.6.0 to address:
+  - Heap buffer overflow vulnerability
+  - Use-after-free vulnerability
+  - Remote code execution via torch.load
+- **Transformers**: Updated to 4.48.0 to address:
+  - Multiple deserialization of untrusted data vulnerabilities
+
+### 3. Custom Build Command
 The `render.yaml` now uses a custom build command that:
 - Explicitly installs CPU-only PyTorch from the CPU wheel index
+- Uses patched versions with security fixes (PyTorch 2.6.0, Transformers 4.48.0)
 - Installs only essential dependencies
 - Uses specific versions to ensure compatibility
 
-### 3. Automatic File Cleanup
+### 4. Automatic File Cleanup
 Added automatic cleanup functions to manage disk space:
 - **Upload cleanup**: Keeps only 5 most recent uploaded files
 - **Converted files**: Maintains max 10 converted audio files
 - **Temp files**: Immediate cleanup after processing each chunk
 
-### 4. Model Cache Configuration
+### 5. Model Cache Configuration
 - Uses environment variables (`HF_HOME`, `TRANSFORMERS_CACHE`)
 - Points to Render's persistent storage path
 - Model downloaded once, cached for all subsequent requests

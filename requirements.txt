@@ -4,9 +4,10 @@ gunicorn==21.2.0
 
 # ML - Using CPU-optimized packages for Render deployment
 # Install from PyTorch CPU wheel index for smaller size
-torch==2.1.0
-torchaudio==2.1.0
-transformers==4.35.0
+# Updated to patched versions to address security vulnerabilities
+torch==2.6.0
+torchaudio==2.6.0
+transformers==4.48.0
 
 # Audio processing - optimized versions
 librosa==0.10.1
