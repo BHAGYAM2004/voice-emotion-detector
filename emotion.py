@@ -154,13 +154,11 @@ def cleanup_uploads():
     try:
         upload_dir = "./uploads"
         if os.path.exists(upload_dir):
-            files = sorted(
-                [os.path.join(upload_dir, f) for f in os.listdir(upload_dir) if os.path.isfile(os.path.join(upload_dir, f))],
-                key=os.path.getmtime
-            )
+            files = [os.path.join(upload_dir, f) for f in os.listdir(upload_dir) if os.path.isfile(os.path.join(upload_dir, f))]
+            files_sorted = sorted(files, key=os.path.getmtime)
             # Keep only the 5 most recent uploads
-            if len(files) > 5:
-                for f in files[:-5]:
+            if len(files_sorted) > 5:
+                for f in files_sorted[:-5]:
                     try:
                         os.remove(f)
                         print(f"Cleaned up old upload: {f}")

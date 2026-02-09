@@ -21,9 +21,6 @@ Thumbs.db
 .git/
 .gitignore
 
-# README and documentation
-README.md
-
 # These will be created at runtime on Render
 hf_cache/
 temp_audio/
