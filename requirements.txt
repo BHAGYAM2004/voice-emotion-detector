@@ -1,6 +1,6 @@
 # Web framework
 flask==3.0.0
-gunicorn==21.2.0
+gunicorn==22.0.0
 
 # ML - Using CPU-optimized packages for Render deployment
 # Install from PyTorch CPU wheel index for smaller size
