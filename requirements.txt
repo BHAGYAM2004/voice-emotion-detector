@@ -2,11 +2,13 @@
 flask==3.0.0
 gunicorn==22.0.0
 
-# ML - Using CPU-optimized packages for Render deployment
-# Compatible with Python 3.11 (has prebuilt wheels)
-torch==2.5.1
-torchaudio==2.5.1
+# ML - Using ONNX Runtime (lightweight) + PyTorch for compatibility
+# ONNX Runtime is ~50MB vs PyTorch ~300MB+
+torch==2.10.0
+torchaudio==2.10.0
 transformers==4.46.0
+optimum==1.26.0  # For ONNX model support and quantization
+onnxruntime==1.24.1  # Lightweight inference engine (~50MB)
 
 # Audio processing - Python 3.11 compatible with prebuilt wheels
 librosa==0.10.2

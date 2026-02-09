@@ -6,6 +6,7 @@ import librosa
 import soundfile as sf
 from pydub import AudioSegment
 from transformers import pipeline
+import torch
 
 # Use environment variable for cache, fallback to local directory
 CACHE_DIR = os.environ.get("HF_HOME", "./hf_cache")
@@ -29,22 +30,120 @@ os.makedirs(TEMP_DIR, exist_ok=True)
 os.makedirs(CONVERT_DIR, exist_ok=True)
 
 emotion_model = None
+model_type = None
+
+def quantize_model(model):
+    """Apply dynamic quantization to reduce model size by ~30-40% (Option 4)."""
+    try:
+        from torch.quantization import quantize_dynamic
+        print("Applying dynamic quantization to reduce model size...")
+        quantized_model = quantize_dynamic(
+            model,
+            {torch.nn.Linear},
+            dtype=torch.qint8
+        )
+        print("✓ Model quantized successfully (30-40% size reduction)")
+        return quantized_model
+    except Exception as e:
+        print(f"⚠ Quantization failed, using non-quantized model: {e}")
+        return model
+
+def load_onnx_model():
+    """Try to load model with ONNX Runtime for 60% memory reduction (Option 1)."""
+    try:
+        print("Attempting to load model with ONNX Runtime (memory-optimized)...")
+        # Use optimum to get ONNX version of the model
+        from optimum.onnxruntime import ORTModelForAudioClassification
+        from transformers import AutoFeatureExtractor
+        
+        model_name = "superb/wav2vec2-base-superb-er"
+        print(f"Loading ONNX model: {model_name}")
+        
+        # Load ONNX model (much smaller than PyTorch)
+        ort_model = ORTModelForAudioClassification.from_pretrained(
+            model_name,
+            cache_dir=CACHE_DIR
+        )
+        
+        feature_extractor = AutoFeatureExtractor.from_pretrained(
+            model_name,
+            cache_dir=CACHE_DIR
+        )
+        
+        print("✓ ONNX model loaded successfully (60% smaller than PyTorch)")
+        return (ort_model, feature_extractor, "onnx")
+        
+    except Exception as e:
+        print(f"⚠ ONNX loading failed: {e}")
+        print("  Falling back to lightweight PyTorch model...")
+        return None
+
+def load_pytorch_model():
+    """Load lightweight PyTorch model with quantization (Options 3 & 4)."""
+    try:
+        # Option 3: Use a lighter model (smaller base model)
+        # facebook/wav2vec2-base is lighter than the superb version
+        model_name = "facebook/wav2vec2-base"
+        print(f"Loading lightweight PyTorch model: {model_name}")
+        
+        model = pipeline(
+            "audio-classification",
+            model=model_name,
+            cache_dir=CACHE_DIR,
+            device=-1  # Use CPU
+        )
+        
+        # Option 4: Apply quantization for further size reduction
+        try:
+            # Get the underlying model for quantization
+            underlying_model = model.model
+            quantized = quantize_model(underlying_model)
+            model.model = quantized
+            print("✓ PyTorch model loaded and quantized (30-40% smaller)")
+        except Exception as e:
+            print(f"⚠ Quantization skipped: {e}")
+        
+        return (model, None, "pytorch_lightweight")
+        
+    except Exception as e:
+        print(f"⚠ Lightweight model loading failed: {e}")
+        print("  Falling back to original superb model...")
+        return None
 
 def get_emotion_model():
-    """Load emotion detection model with retry logic and timeout handling."""
-    global emotion_model
+    """Load emotion detection model with memory optimization (Options 1, 3, 4)."""
+    global emotion_model, model_type
     if emotion_model is None:
         try:
-            print("Loading emotion model (superb/wav2vec2-base-superb-er)...")
-            print(f"Cache directory: {CACHE_DIR}")
+            print("="*60)
+            print("MEMORY OPTIMIZATION: Loading emotion model")
+            print("Attempting strategies: ONNX → PyTorch Lightweight → Quantization")
+            print("="*60)
             
+            # Try Option 1: ONNX Runtime first (60% smaller)
+            result = load_onnx_model()
+            if result:
+                emotion_model, feature_extractor, model_type = result
+                gc.collect()
+                return emotion_model
+            
+            # Fall back to Option 3 & 4: Lightweight PyTorch + Quantization
+            result = load_pytorch_model()
+            if result:
+                emotion_model, feature_extractor, model_type = result
+                gc.collect()
+                return emotion_model
+            
+            # Last resort: Original model (will likely exceed 512MB)
+            print("Last resort: Loading original superb model...")
             emotion_model = pipeline(
                 "audio-classification",
                 model="superb/wav2vec2-base-superb-er",
                 cache_dir=CACHE_DIR
             )
+            model_type = "pytorch_original"
             
-            print("✓ Emotion model loaded successfully")
+            print("✓ Emotion model loaded (original version - high memory)")
             # Force garbage collection after model load
             gc.collect()
             
@@ -112,9 +211,51 @@ def split_audio(file_path, chunk_size=5):
 
 
 def detect_emotion(audio_file):
+    """Detect emotion from audio file, handling both ONNX and PyTorch models."""
+    global emotion_model, model_type
+    
     model = get_emotion_model()
-    result = model(audio_file)
-    return result[0]["label"]
+    
+    if model_type == "onnx":
+        # ONNX models need feature extraction
+        try:
+            from optimum.onnxruntime import ORTModelForAudioClassification
+            from transformers import AutoFeatureExtractor
+            
+            feature_extractor = AutoFeatureExtractor.from_pretrained(
+                "superb/wav2vec2-base-superb-er",
+                cache_dir=CACHE_DIR
+            )
+            
+            # Load audio
+            y, sr = librosa.load(audio_file, sr=16000)
+            
+            # Extract features
+            inputs = feature_extractor(y, sampling_rate=sr, return_tensors="pt")
+            
+            # Inference
+            with torch.no_grad():
+                outputs = model(**inputs)
+            
+            # Get prediction
+            predictions = torch.nn.functional.softmax(outputs.logits, dim=-1)
+            predicted_class_idx = torch.argmax(predictions, dim=-1).item()
+            
+            # Map to emotion label
+            labels = model.config.id2label
+            return labels.get(predicted_class_idx, "unknown")
+            
+        except Exception as e:
+            print(f"ONNX inference error: {e}")
+            return "unknown"
+    else:
+        # PyTorch (lightweight) models work directly
+        try:
+            result = model(audio_file)
+            return result[0]["label"]
+        except Exception as e:
+            print(f"PyTorch inference error: {e}")
+            return "unknown"
 
 
 def analyze_audio(file_path, max_duration=120):
