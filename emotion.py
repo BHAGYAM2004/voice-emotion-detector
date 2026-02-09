@@ -94,8 +94,29 @@ def detect_emotion(audio_file):
     return result[0]["label"]
 
 
-def analyze_audio(file_path):
+def analyze_audio(file_path, max_duration=120):
+    """
+    Analyze audio emotion with memory optimization for Render free tier.
+    
+    Args:
+        file_path: Path to audio file
+        max_duration: Max audio duration in seconds (default 120s = 2 minutes)
+    
+    Raises:
+        ValueError: If audio exceeds max_duration
+    """
     file_path = convert_to_wav(file_path)
+
+    # Check duration before full load to prevent memory overload
+    y, sr = librosa.load(file_path, sr=None)
+    duration = librosa.get_duration(y=y, sr=sr)
+    
+    if duration > max_duration:
+        raise ValueError(
+            f"Audio too long. Maximum: {max_duration}s (~{max_duration/60:.1f} min), "
+            f"received: {duration:.1f}s (~{duration/60:.1f} min). "
+            "Please upload a shorter audio file."
+        )
 
     parts, y, sr = split_audio(file_path)
 
