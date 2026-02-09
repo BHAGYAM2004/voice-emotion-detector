@@ -3,9 +3,18 @@ import os
 import pandas as pd
 import plotly.express as px
 from werkzeug.utils import secure_filename
-from emotion import analyze_audio
+from emotion import analyze_audio, get_emotion_model
 
 app = Flask(__name__)
+
+# Preload the model when app starts (important for gunicorn preload_app=True)
+print("Preloading emotion detection model...")
+try:
+    get_emotion_model()
+    print("Model preloaded successfully!")
+except Exception as e:
+    print(f"Warning: Could not preload model: {e}")
+    print("Model will be loaded on first request instead.")
 
 UPLOAD_FOLDER = "uploads"
 ALLOWED_EXTENSIONS = {".wav", ".mp3", ".m4a", ".flac", ".ogg"}
