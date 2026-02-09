@@ -6,10 +6,11 @@ import soundfile as sf
 from pydub import AudioSegment
 from transformers import pipeline
 
-CACHE_DIR = "./hf_cache"
+# Use environment variable for cache, fallback to local directory
+CACHE_DIR = os.environ.get("HF_HOME", "./hf_cache")
 TEMP_DIR = "./temp_audio"
 CONVERT_DIR = "./converted_audio"
-MAX_CONVERTED_FILES = 50
+MAX_CONVERTED_FILES = 10  # Reduced from 50 to save space
 
 os.makedirs(CACHE_DIR, exist_ok=True)
 os.makedirs(TEMP_DIR, exist_ok=True)
@@ -142,4 +143,28 @@ def analyze_audio(file_path):
             "duration": f"{int(total_duration)}s"
         })
 
+    # Clean up uploaded and converted files after processing to save space
+    cleanup_uploads()
+    
     return emotions if emotions else [{"time": "0:00", "emotion": "unknown", "duration": "0s"}]
+
+
+def cleanup_uploads():
+    """Remove old uploaded files to save disk space on Render"""
+    try:
+        upload_dir = "./uploads"
+        if os.path.exists(upload_dir):
+            files = sorted(
+                [os.path.join(upload_dir, f) for f in os.listdir(upload_dir) if os.path.isfile(os.path.join(upload_dir, f))],
+                key=os.path.getmtime
+            )
+            # Keep only the 5 most recent uploads
+            if len(files) > 5:
+                for f in files[:-5]:
+                    try:
+                        os.remove(f)
+                        print(f"Cleaned up old upload: {f}")
+                    except Exception as e:
+                        print(f"Could not remove {f}: {e}")
+    except Exception as e:
+        print(f"Upload cleanup warning: {e}")

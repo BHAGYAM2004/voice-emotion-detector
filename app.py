@@ -10,6 +10,7 @@ app = Flask(__name__)
 UPLOAD_FOLDER = "uploads"
 ALLOWED_EXTENSIONS = {".wav", ".mp3", ".m4a", ".flac", ".ogg"}
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+os.makedirs("static", exist_ok=True)  # Ensure static directory exists
 
 @app.template_filter('unique_emotions')
 def unique_emotions_filter(data):

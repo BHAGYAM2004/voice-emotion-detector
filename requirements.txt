@@ -1,11 +1,21 @@
+# Web framework
 flask==3.0.0
 gunicorn==21.2.0
-torch
-torchaudio
-transformers
-librosa
-soundfile
-numpy
-pandas
-plotly
-pydub
+
+# ML - Using CPU-optimized packages for Render deployment
+# Install from PyTorch CPU wheel index for smaller size
+torch==2.1.0
+torchaudio==2.1.0
+transformers==4.35.0
+
+# Audio processing - optimized versions
+librosa==0.10.1
+soundfile==0.12.1
+numpy==1.24.3
+pandas==2.1.3
+
+# Visualization
+plotly==5.18.0
+
+# Audio conversion
+pydub==0.25.1

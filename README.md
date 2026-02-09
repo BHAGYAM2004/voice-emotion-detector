@@ -28,8 +28,8 @@ A Flask-based web application that analyzes voice recordings to detect emotional
 
 - Python 3.11+
 - FFmpeg (for audio conversion)
-- 8GB RAM minimum
-- 15GB disk space (for ML models)
+- 4GB RAM minimum (2GB for local development)
+- 5GB disk space for local development (models cached locally)
 
 ### Local Installation
 
@@ -126,7 +126,13 @@ voice-emotion-detector/
 
 ## Deployment
 
-### Deploy to Render
+### Deploy to Render (Optimized for Free Tier)
+
+This project is optimized to run on Render's free tier with the following space-saving features:
+- CPU-only PyTorch installation (significantly smaller than GPU version)
+- Automatic cleanup of old uploaded files
+- Efficient model caching
+- Minimal dependency footprint
 
 1. **Push to GitHub:**
 ```bash
@@ -142,13 +148,25 @@ git push -u origin main
    - Render auto-detects `render.yaml`
    - Click "Create Web Service"
 
-3. **Wait for deployment** (5-10 minutes)
-   - Render builds the image
+3. **Wait for deployment** (10-15 minutes first time)
+   - Render installs CPU-optimized PyTorch
    - Installs FFmpeg
-   - Downloads ML models
+   - Downloads ML models (~380MB, cached for future deployments)
    - Deploys app
 
+4. **Model Download:** The first request will trigger model download (~2-3 minutes). Subsequent requests will be fast as the model is cached.
+
 Once deployed, your public URL will be displayed!
+
+### Space Optimization Features
+
+The app includes several optimizations for Render's space limitations:
+
+- **CPU-only PyTorch**: Uses smaller CPU wheels instead of CUDA-enabled packages
+- **Automatic file cleanup**: Keeps only the 5 most recent uploads
+- **Efficient temp file management**: Cleans up temporary audio chunks immediately
+- **Converted file limits**: Maintains max 10 converted audio files
+- **Model caching**: Uses Render's persistent storage for model cache
 
 ## Performance Tips
 
