@@ -3,13 +3,17 @@ services:
     name: voice-emotion-detector
     env: python
     plan: free
+    runtime: python
     apt:
       - ffmpeg
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn -c gunicorn.conf.py app:app
+    startCommand: |
+      chmod +x verify_deployment.sh
+      ./verify_deployment.sh || echo "Pre-flight check completed with warnings"
+      gunicorn -c gunicorn.conf.py app:app
     envVars:
       - key: PYTHON_VERSION
-        value: 3.11.9
+        value: 3.11.10
       - key: TRANSFORMERS_CACHE
         value: /opt/render/project/src/hf_cache
       - key: HF_HOME

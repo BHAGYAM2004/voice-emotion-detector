@@ -3,17 +3,16 @@ flask==3.0.0
 gunicorn==22.0.0
 
 # ML - Using CPU-optimized packages for Render deployment
-# Install from PyTorch CPU wheel index for smaller size
-# Updated to patched versions to address security vulnerabilities
-torch==2.6.0
-torchaudio==2.6.0
-transformers==4.48.0
+# Compatible with Python 3.11 (has prebuilt wheels)
+torch==2.5.1
+torchaudio==2.5.1
+transformers==4.46.0
 
-# Audio processing - Python 3.13 compatible versions
+# Audio processing - Python 3.11 compatible with prebuilt wheels
 librosa==0.10.2
 soundfile==0.12.1
-numpy>=1.26.0,<2.0.0
-pandas==2.2.0
+numpy==1.26.4
+pandas==2.0.3
 
 # Visualization
 plotly==5.18.0

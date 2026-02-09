@@ -1,5 +1,7 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, jsonify
 import os
+import sys
+import gc
 import pandas as pd
 import plotly.express as px
 from werkzeug.utils import secure_filename
@@ -15,14 +17,28 @@ MAX_AUDIO_DURATION = 120  # Max 2 minutes (120 seconds) to prevent memory overlo
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs("static", exist_ok=True)  # Ensure static directory exists
 
+# Track startup status
+model_loaded = False
+startup_error = None
+
 # Preload the model when app starts (important for gunicorn preload_app=True)
+print("="*60)
+print("RENDER DEPLOYMENT: Starting application...")
+print(f"Python version: {sys.version}")
+print(f"Platform: {sys.platform}")
+print("="*60)
+
 print("Preloading emotion detection model...")
 try:
     get_emotion_model()
-    print("Model preloaded successfully!")
+    model_loaded = True
+    print("✓ Model preloaded successfully!")
+    print("✓ Application ready to serve requests")
 except Exception as e:
-    print(f"Warning: Could not preload model: {e}")
-    print("Model will be loaded on first request instead.")
+    startup_error = str(e)
+    print(f"✗ Warning: Could not preload model: {e}")
+    print("✗ Model will be loaded on first request instead (may cause timeout)")
+    print("="*60)
 
 @app.template_filter('unique_emotions')
 def unique_emotions_filter(data):
@@ -80,6 +96,9 @@ def home():
         )
 
         fig.write_html("static/chart.html")
+        
+        # Force garbage collection after processing to free memory
+        gc.collect()
 
         return render_template("result.html", data=data)
 
@@ -88,11 +107,33 @@ def home():
 
 @app.route("/warmup")
 def warmup():
-    return "Server is warm and model loaded."
+    """Warmup endpoint to wake up sleeping service and verify model is loaded."""
+    try:
+        model = get_emotion_model()
+        return jsonify({
+            "status": "ready",
+            "model_loaded": model is not None,
+            "message": "Server is warm and model loaded"
+        })
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "model_loaded": False,
+            "error": str(e)
+        }), 500
 
 @app.route("/health")
 def health():
-    return "OK"
+    """Health check endpoint for Render monitoring."""
+    return jsonify({
+        "status": "ok",
+        "model_loaded": model_loaded,
+        "startup_error": startup_error,
+        "limits": {
+            "max_file_size_mb": 30,
+            "max_duration_seconds": MAX_AUDIO_DURATION
+        }
+    })
 
 
 if __name__ == "__main__":

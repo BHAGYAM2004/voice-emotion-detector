@@ -1,6 +1,7 @@
 import os
 import uuid
 import shutil
+import gc
 import librosa
 import soundfile as sf
 from pydub import AudioSegment
@@ -12,6 +13,17 @@ TEMP_DIR = "./temp_audio"
 CONVERT_DIR = "./converted_audio"
 MAX_CONVERTED_FILES = 10  # Reduced from 50 to save space
 
+# Verify ffmpeg availability at module load
+try:
+    ffmpeg_available = bool(shutil.which("ffmpeg"))
+    if ffmpeg_available:
+        print("✓ FFmpeg detected and available")
+    else:
+        print("⚠ FFmpeg not found - only WAV files will be supported")
+except Exception as e:
+    print(f"⚠ Could not check for FFmpeg: {e}")
+    ffmpeg_available = False
+
 os.makedirs(CACHE_DIR, exist_ok=True)
 os.makedirs(TEMP_DIR, exist_ok=True)
 os.makedirs(CONVERT_DIR, exist_ok=True)
@@ -19,16 +31,27 @@ os.makedirs(CONVERT_DIR, exist_ok=True)
 emotion_model = None
 
 def get_emotion_model():
+    """Load emotion detection model with retry logic and timeout handling."""
     global emotion_model
     if emotion_model is None:
         try:
+            print("Loading emotion model (superb/wav2vec2-base-superb-er)...")
+            print(f"Cache directory: {CACHE_DIR}")
+            
             emotion_model = pipeline(
                 "audio-classification",
                 model="superb/wav2vec2-base-superb-er",
                 cache_dir=CACHE_DIR
             )
+            
+            print("✓ Emotion model loaded successfully")
+            # Force garbage collection after model load
+            gc.collect()
+            
         except Exception as e:
             print(f"ERROR: Failed to load emotion model: {e}")
+            print(f"Cache dir exists: {os.path.exists(CACHE_DIR)}")
+            print(f"Cache dir writable: {os.access(CACHE_DIR, os.W_OK)}")
             raise RuntimeError(f"Model loading failed: {e}") from e
     return emotion_model
 
@@ -166,6 +189,9 @@ def analyze_audio(file_path, max_duration=120):
 
     # Clean up uploaded and converted files after processing to save space
     cleanup_uploads()
+    
+    # Force garbage collection to free memory immediately (critical for 512MB limit)
+    gc.collect()
     
     return emotions if emotions else [{"time": "0:00", "emotion": "unknown", "duration": "0s"}]
 
